@@ -110,17 +110,18 @@ class CollabWrapperTestActivity(activity.Activity):
     def _test_clicked_cb(self, widget):
         now = time.time()
         self._collab.post({'action': 'echo-request', 'text': now})
-        self._log.props.text += '%.6f send echo-request %r\n' % (now, now)
+        self._say('%.6f send echo-request %r\n' % (now, now))
 
     def _clear_clicked_cb(self, widget):
-        self._log.props.text = ''
+        self._textbuffer.props.text = ''
 
     def _make_canvas(self):
-        textview = Gtk.TextView()
+        self._textview = Gtk.TextView()
+        self._textview.props.editable = False
+        self._textbuffer = self._textview.get_buffer()
 
         sw = Gtk.ScrolledWindow()
-        sw.add(textview)
-        # FIXME: keep window scrolled to end
+        sw.add(self._textview)
 
         entry = Gtk.Entry()
         entry.connect('activate', self._entry_activate_cb)
@@ -136,10 +137,14 @@ class CollabWrapperTestActivity(activity.Activity):
         box.show_all()
 
         self.set_canvas(box)
-        self._log = textview.get_buffer()
 
     def _say(self, string):
-        self._log.props.text += string
+        self._textbuffer.begin_user_action()
+        self._textbuffer.insert(
+            self._textbuffer.get_end_iter(), string, len(string))
+        self._textview.scroll_mark_onscreen(self._textbuffer.create_mark(
+            None, self._textbuffer.get_end_iter()))
+        self._textbuffer.end_user_action()
 
     def _entry_activate_cb(self, widget):
         text = widget.props.text
