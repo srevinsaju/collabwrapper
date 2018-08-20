@@ -94,7 +94,7 @@ from sugar3.activity.activity import SCOPE_PRIVATE
 from sugar3.graphics.alert import NotifyAlert
 
 import logging
-_logger = logging.getLogger('text-channel-wrapper')
+_logger = logging.getLogger('CollabWrapper')
 
 ACTION_INIT_REQUEST = '!!ACTION_INIT_REQUEST'
 ACTION_INIT_RESPONSE = '!!ACTION_INIT_RESPONSE'
@@ -159,6 +159,7 @@ class CollabWrapper(GObject.GObject):
     incoming_file = GObject.Signal('incoming_file', arg_types=[object, object])
 
     def __init__(self, activity):
+        _logger.debug('__init__')
         GObject.GObject.__init__(self)
         self.activity = activity
         self.shared_activity = activity.shared_activity
@@ -178,6 +179,7 @@ class CollabWrapper(GObject.GObject):
             example, call setup at the end of the activity
             `__init__` function.
         '''
+        _logger.debug('setup')
         # Some glue to know if we are launching, joining, or resuming
         # a shared activity.
         if self.shared_activity:
@@ -215,13 +217,15 @@ class CollabWrapper(GObject.GObject):
 
     def __shared_cb(self, sender):
         ''' Callback for when activity is shared. '''
+        _logger.debug('__shared_cb')
+        # FIXME: may be called twice, but we should only act once
         self.shared_activity = self.activity.shared_activity
         self._setup_text_channel()
         self._listen_for_channels()
-        _logger.debug('I am sharing...')
 
     def __joined_cb(self, sender):
         '''Callback for when an activity is joined.'''
+        _logger.debug('__joined_cb')
         self.shared_activity = self.activity.shared_activity
         if not self.shared_activity:
             return
@@ -234,11 +238,11 @@ class CollabWrapper(GObject.GObject):
         for buddy in self.shared_activity.get_joined_buddies():
             self.buddy_joined.emit(buddy)
 
-        _logger.debug('I joined a shared activity.')
         self.joined.emit()
 
     def _setup_text_channel(self):
         ''' Set up a text channel to use for collaboration. '''
+        _logger.debug('_setup_text_channel')
         self._text_channel = _TextChannelWrapper(
             self.shared_activity.telepathy_text_chan,
             self.shared_activity.telepathy_conn)
@@ -253,10 +257,12 @@ class CollabWrapper(GObject.GObject):
         self.shared_activity.connect('buddy-left', self.__buddy_left_cb)
 
     def _listen_for_channels(self):
+        _logger.debug('_listen_for_channels')
         conn = self.shared_activity.telepathy_conn
         conn.connect_to_signal('NewChannels', self.__new_channels_cb)
 
     def __new_channels_cb(self, channels):
+        _logger.debug('__new_channels_cb')
         conn = self.shared_activity.telepathy_conn
         for path, props in channels:
             if props[CHANNEL + '.Requested']:
@@ -267,6 +273,7 @@ class CollabWrapper(GObject.GObject):
                 self._handle_ft_channel(conn, path, props)
 
     def _handle_ft_channel(self, conn, path, props):
+        _logger.debug('_handle_ft_channel')
         ft = IncomingFileTransfer(conn, path, props)
         if ft.description == ACTION_INIT_RESPONSE:
             ft.connect('notify::state', self.__notify_ft_state_cb)
@@ -276,30 +283,33 @@ class CollabWrapper(GObject.GObject):
             self.incoming_file.emit(ft, desc)
 
     def __notify_ft_state_cb(self, ft, pspec):
+        _logger.debug('__notify_ft_state_cb')
         if ft.props.state == FT_STATE_COMPLETED and self._init_waiting:
             stream = ft.props.output
             stream.close(None)
             # FIXME:  The data prop seems to just be the raw pointer
             gbytes = stream.steal_as_bytes()
             data = gbytes.get_data()
-            logging.debug('Got init data from buddy:  %s', data)
+            _logger.debug('Got init data from buddy: %r', data)
             data = json.loads(data)
             self.activity.set_data(data)
             self._init_waiting = False
 
     def __received_cb(self, buddy, msg):
         '''Process a message when it is received.'''
+        _logger.debug('__received_cb')
         action = msg.get('action')
         if action == ACTION_INIT_REQUEST and self._leader:
             data = self.activity.get_data()
-            data = json.dumps(data)
-            OutgoingBlobTransfer(
-                buddy,
-                self.shared_activity.telepathy_conn,
-                data,
-                self.get_client_name(),
-                ACTION_INIT_RESPONSE,
-                ACTIVITY_FT_MIME)
+            if data is not None:
+                data = json.dumps(data)
+                OutgoingBlobTransfer(
+                    buddy,
+                    self.shared_activity.telepathy_conn,
+                    data,
+                    self.get_client_name(),
+                    ACTION_INIT_RESPONSE,
+                    ACTIVITY_FT_MIME)
             return
 
         if buddy:
@@ -460,7 +470,7 @@ class _BaseFileTransfer(GObject.GObject):
         self.mime_type = props['ContentType']
 
     def __transferred_bytes_changed_cb(self, transferred_bytes):
-        logging.debug('__transferred_bytes_changed_cb %r', transferred_bytes)
+        _logger.debug('__transferred_bytes_changed_cb %r', transferred_bytes)
         self.props.transferred_bytes = transferred_bytes
 
     def _set_transferred_bytes(self, transferred_bytes):
@@ -475,11 +485,11 @@ class _BaseFileTransfer(GObject.GObject):
                                          setter=_set_transferred_bytes)
 
     def __initial_offset_defined_cb(self, offset):
-        logging.debug('__initial_offset_defined_cb %r', offset)
+        _logger.debug('__initial_offset_defined_cb %r', offset)
         self.initial_offset = offset
 
     def __state_changed_cb(self, state, reason):
-        logging.debug('__state_changed_cb %r %r', state, reason)
+        _logger.debug('__state_changed_cb %r %r', state, reason)
         self.reason_last_change = reason
         self.props.state = state
 
@@ -561,7 +571,7 @@ class IncomingFileTransfer(_BaseFileTransfer):
             byte_arrays=True)
 
     def __notify_state_cb(self, file_transfer, pspec):
-        logging.debug('__notify_state_cb %r', self.props.state)
+        _logger.debug('__notify_state_cb %r', self.props.state)
         if self.props.state == FT_STATE_OPEN:
             # Need to hold a reference to the socket so that python doesn't
             # close the fd when it goes out of scope
