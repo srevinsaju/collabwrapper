@@ -299,17 +299,18 @@ class CollabWrapper(GObject.GObject):
         '''Process a message when it is received.'''
         _logger.debug('__received_cb')
         action = msg.get('action')
-        if action == ACTION_INIT_REQUEST and self._leader:
-            data = self.activity.get_data()
-            if data is not None:
-                data = json.dumps(data)
-                OutgoingBlobTransfer(
-                    buddy,
-                    self.shared_activity.telepathy_conn,
-                    data,
-                    self.get_client_name(),
-                    ACTION_INIT_RESPONSE,
-                    ACTIVITY_FT_MIME)
+        if action == ACTION_INIT_REQUEST:
+            if self._leader:
+                data = self.activity.get_data()
+                if data is not None:
+                    data = json.dumps(data)
+                    OutgoingBlobTransfer(
+                        buddy,
+                        self.shared_activity.telepathy_conn,
+                        data,
+                        self.get_client_name(),
+                        ACTION_INIT_RESPONSE,
+                        ACTIVITY_FT_MIME)
             return
 
         if buddy:
