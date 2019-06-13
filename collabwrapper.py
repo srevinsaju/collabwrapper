@@ -148,8 +148,7 @@ class CollabWrapper(GObject.GObject):
 
     The `incoming_file` signal is emitted when a file transfer is
     received.  The signal has two arguments.  The first is a
-    :class:`sugar3.presence.filetransfer.IncomingFileTransfer`.  The
-    second is the description.
+    :class:`IncomingFileTransfer`.  The second is the description.
     '''
 
     message = GObject.Signal('message', arg_types=[object, object])
@@ -432,7 +431,7 @@ class _BaseFileTransfer(GObject.GObject):
 
     GObject Props:
         state (FT_STATE_*), current state of the transfer
-        transferred_bytes (int), number of bytes transfered so far
+        transferred_bytes (int), number of bytes transferred so far
     '''
 
     def __init__(self):
