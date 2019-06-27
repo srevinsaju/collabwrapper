@@ -68,26 +68,28 @@ import json
 import socket
 from gettext import gettext as _
 
+import gi
+gi.require_version('TelepathyGLib', '0.12')
 from gi.repository import GObject
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import TelepathyGLib
 import dbus
+from dbus import PROPERTIES_IFACE
 
-from telepathy.interfaces import \
-    CHANNEL_INTERFACE, \
-    CHANNEL_INTERFACE_GROUP, \
-    CHANNEL_TYPE_TEXT, \
-    CHANNEL_TYPE_FILE_TRANSFER, \
-    CONN_INTERFACE_ALIASING, \
-    CHANNEL, \
-    CLIENT
-from telepathy.constants import \
-    CHANNEL_GROUP_FLAG_CHANNEL_SPECIFIC_HANDLES, \
-    CONNECTION_HANDLE_TYPE_CONTACT, \
-    CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, \
-    SOCKET_ADDRESS_TYPE_UNIX, \
-    SOCKET_ACCESS_CONTROL_LOCALHOST
-from telepathy.client import Connection, Channel
+CHANNEL_INTERFACE = TelepathyGLib.IFACE_CHANNEL
+CHANNEL_INTERFACE_GROUP = TelepathyGLib.IFACE_CHANNEL_INTERFACE_GROUP
+CHANNEL_TYPE_TEXT = TelepathyGLib.IFACE_CHANNEL_TYPE_TEXT
+CHANNEL_TYPE_FILE_TRANSFER = TelepathyGLib.IFACE_CHANNEL_TYPE_FILE_TRANSFER
+CONN_INTERFACE_ALIASING = TelepathyGLib.IFACE_CONNECTION_INTERFACE_ALIASING
+CONN_INTERFACE = TelepathyGLib.IFACE_CONNECTION
+CHANNEL = TelepathyGLib.IFACE_CHANNEL
+CLIENT = TelepathyGLib.IFACE_CLIENT
+CHANNEL_GROUP_FLAG_CHANNEL_SPECIFIC_HANDLES = TelepathyGLib.ChannelGroupFlags.CHANNEL_SPECIFIC_HANDLES
+CONNECTION_HANDLE_TYPE_CONTACT = TelepathyGLib.HandleType.CONTACT
+CHANNEL_TEXT_MESSAGE_TYPE_NORMAL = TelepathyGLib.ChannelTextMessageType.NORMAL
+SOCKET_ADDRESS_TYPE_UNIX = TelepathyGLib.SocketAddressType.UNIX
+SOCKET_ACCESS_CONTROL_LOCALHOST = TelepathyGLib.SocketAccessControl.LOCALHOST
 
 from sugar3.presence import presenceservice
 from sugar3.activity.activity import SCOPE_PRIVATE
@@ -459,7 +461,7 @@ class _BaseFileTransfer(GObject.GObject):
         self.channel[CHANNEL_TYPE_FILE_TRANSFER].connect_to_signal(
             'InitialOffsetDefined', self.__initial_offset_defined_cb)
 
-        channel_properties = self.channel[dbus.PROPERTIES_IFACE]
+        channel_properties = self.channel[PROPERTIES_IFACE]
 
         props = channel_properties.GetAll(CHANNEL_TYPE_FILE_TRANSFER)
         self._state = props['State']
@@ -528,7 +530,11 @@ class IncomingFileTransfer(_BaseFileTransfer):
     def __init__(self, connection, object_path, props):
         _BaseFileTransfer.__init__(self)
 
-        channel = Channel(connection.bus_name, object_path)
+        channel = {}
+        proxy = dbus.Bus().get_object(connection.bus_name, object_path)
+        channel[PROPERTIES_IFACE] = dbus.Interface(proxy, PROPERTIES_IFACE)
+        channel[CHANNEL] = dbus.Interface(proxy, CHANNEL)
+        channel[CHANNEL_TYPE_FILE_TRANSFER] = dbus.Interface(proxy, CHANNEL_TYPE_FILE_TRANSFER)
         self.set_channel(channel)
 
         self.connect('notify::state', self.__notify_state_cb)
@@ -652,7 +658,12 @@ class _BaseOutgoingTransfer(_BaseFileTransfer):
             CHANNEL_TYPE_FILE_TRANSFER + '.Size': file_size,
             CHANNEL_TYPE_FILE_TRANSFER + '.ContentType': self._mime,
             CHANNEL_TYPE_FILE_TRANSFER + '.InitialOffset': 0}, signature='sv'))
-        self.set_channel(Channel(self._conn.bus_name, object_path))
+        channel = {}
+        proxy = dbus.Bus().get_object(self._conn.bus_name, object_path)
+        channel[PROPERTIES_IFACE] = dbus.Interface(proxy, PROPERTIES_IFACE)
+        channel[CHANNEL] = dbus.Interface(proxy, CHANNEL)
+        channel[CHANNEL_TYPE_FILE_TRANSFER] = dbus.Interface(proxy, CHANNEL_TYPE_FILE_TRANSFER)
+        self.set_channel(channel)
 
         channel_file_transfer = self.channel[CHANNEL_TYPE_FILE_TRANSFER]
         self._socket_address = channel_file_transfer.ProvideFile(
@@ -842,7 +853,8 @@ class _TextChannelWrapper(object):
 
         # Get the Telepathy Connection
         tp_name, tp_path = pservice.get_preferred_connection()
-        conn = Connection(tp_name, tp_path)
+        obj = dbus.Bus().get_object(tp_name, tp_path)
+        conn = dbus.Interface(obj, CONN_INTERFACE)
         group = self._text_chan[CHANNEL_INTERFACE_GROUP]
         my_csh = group.GetSelfHandle()
         if my_csh == cs_handle:
