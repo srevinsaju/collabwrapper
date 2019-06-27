@@ -34,7 +34,7 @@ from sugar3.activity.widgets import TitleEntry
 from sugar3.activity.widgets import StopButton
 from sugar3.activity.widgets import ShareButton
 from sugar3.activity.widgets import DescriptionItem
-from collabwrapper import CollabWrapper
+from collabwrapper import CollabWrapper, FT_STATE_COMPLETED
 
 
 class TestButton(ToolButton):
@@ -42,6 +42,13 @@ class TestButton(ToolButton):
     def __init__(self, activity, **kwargs):
         ToolButton.__init__(self, 'media-playback-start', **kwargs)
         self.props.tooltip = _('Ping via CollabWrapper')
+
+
+class SendButton(ToolButton):
+
+    def __init__(self, activity, **kwargs):
+        ToolButton.__init__(self, 'transfer-to', **kwargs)
+        self.props.tooltip = _('Send via CollabWrapper')
 
 
 class ClearButton(ToolButton):
@@ -98,6 +105,8 @@ class CollabWrapperTestActivity(activity.Activity):
         button = tool(TestButton, -1)
         button.props.accelerator = '<ctrl>p'
         button.connect('clicked', self._test_clicked_cb)
+        button = tool(SendButton, -1)
+        button.connect('clicked', self._send_clicked_cb)
         button = tool(ClearButton, -1)
         button.connect('clicked', self._clear_clicked_cb)
         gap()
@@ -111,6 +120,13 @@ class CollabWrapperTestActivity(activity.Activity):
         now = time.time()
         self._collab.post({'action': 'echo-request', 'text': now})
         self._say('%.6f send echo-request %r\n' % (now, now))
+
+    def _send_clicked_cb(self, widget):
+        now = time.time()
+        data = 'One Two Three'
+        desc = 'Test Data'
+        self._collab.send_file_memory(self._last_buddy, data, desc)
+        self._say('%.6f send data %r\n' % (now, (data, desc)))
 
     def _clear_clicked_cb(self, widget):
         self._textbuffer.props.text = ''
@@ -179,7 +195,23 @@ class CollabWrapperTestActivity(activity.Activity):
                       (time.time(), buddy.props.nick, buddy.props.ip4_address))
         self._collab.connect('buddy_left', on_buddy_left_cb, 'buddy_left')
 
+        def on_incoming_file_cb(collab, ft, desc):
+            self._say('%.6f incoming-file %r\n' %
+                      (time.time(), desc))
+
+            def on_ready_cb(ft, stream):
+                stream.close(None)
+                gbytes = stream.steal_as_bytes()
+                data = gbytes.get_data()
+
+                self._say('%.6f data %r\n' % (time.time(), data))
+
+            ft.connect('ready', on_ready_cb)
+            ft.accept_to_memory()
+        self._collab.connect('incoming_file', on_incoming_file_cb)
+
         self._collab.setup()
+        self._last_buddy = None
 
     def _message_cb(self, collab, buddy, msg):
 
@@ -187,6 +219,8 @@ class CollabWrapperTestActivity(activity.Activity):
             self._say('%.6f recv from %s@%s ' %
                       (time.time(), buddy.props.nick, buddy.props.ip4_address))
             self._say(string)
+
+        self._last_buddy = buddy
 
         action = msg.get('action')
         if action == 'echo-reply':
