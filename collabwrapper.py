@@ -275,16 +275,15 @@ class CollabWrapper(GObject.GObject):
         _logger.debug('_handle_ft_channel')
         ft = IncomingFileTransfer(conn, path, props)
         if ft.description == ACTION_INIT_RESPONSE:
-            ft.connect('notify::state', self.__notify_ft_state_cb)
+            ft.connect('ready', self.__ready_cb)
             ft.accept_to_memory()
         else:
             desc = json.loads(ft.description)
             self.incoming_file.emit(ft, desc)
 
-    def __notify_ft_state_cb(self, ft, pspec):
-        _logger.debug('__notify_ft_state_cb')
-        if ft.props.state == FT_STATE_COMPLETED and self._init_waiting:
-            stream = ft.props.output
+    def __ready_cb(self, ft, stream):
+        _logger.debug('__ready_cb')
+        if self._init_waiting:
             stream.close(None)
             # FIXME:  The data prop seems to just be the raw pointer
             gbytes = stream.steal_as_bytes()
@@ -524,6 +523,8 @@ class IncomingFileTransfer(_BaseFileTransfer):
     it is a :class:`Gio.MemoryOutputStream`.
     '''
 
+    ready = GObject.Signal('ready', arg_types=[object])
+
     def __init__(self, connection, object_path, props):
         _BaseFileTransfer.__init__(self)
 
@@ -598,7 +599,11 @@ class IncomingFileTransfer(_BaseFileTransfer):
                 input_stream,
                 Gio.OutputStreamSpliceFlags.CLOSE_SOURCE |
                 Gio.OutputStreamSpliceFlags.CLOSE_TARGET,
-                GLib.PRIORITY_LOW, None, None, None)
+                GLib.PRIORITY_LOW, None, self.__splice_done_cb, None)
+
+    def __splice_done_cb(self, output_stream, res, user):
+        _logger.debug('__splice_done_cb')
+        self.ready.emit(self._destination_path or self._output_stream)
 
     @GObject.Property
     def output(self):
