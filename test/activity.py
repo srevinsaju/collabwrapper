@@ -69,12 +69,11 @@ class CollabWrapperTestActivity(activity.Activity):
         self._make_automatic_restart()
 
     def set_data(self, data):
-        print >>sys.stderr, 'set_data'
-        pass
+        if data is not 'no specific data':
+            logging.error('get_data, set_data: unexpected data %r' % data)
 
     def get_data(self):
-        print >>sys.stderr, 'get_data'
-        return None
+        return 'no specific data'
 
     def _make_toolbar_box(self):
         toolbar_box = ToolbarBox()
