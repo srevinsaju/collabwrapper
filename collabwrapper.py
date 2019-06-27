@@ -560,6 +560,7 @@ class IncomingFileTransfer(_BaseFileTransfer):
         Accept the file transfer.  Once the state is FT_STATE_OPEN, a
         :class:`Gio.MemoryOutputStream` accessible via the output prop.
         '''
+        self._destination_path = None
         self._accept()
 
     def _accept(self):
