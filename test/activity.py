@@ -16,7 +16,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
-import sys
 import time
 import logging
 import gi
@@ -34,7 +33,7 @@ from sugar3.activity.widgets import TitleEntry
 from sugar3.activity.widgets import StopButton
 from sugar3.activity.widgets import ShareButton
 from sugar3.activity.widgets import DescriptionItem
-from collabwrapper import CollabWrapper, FT_STATE_COMPLETED
+from collabwrapper import CollabWrapper
 
 
 class TestButton(ToolButton):

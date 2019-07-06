@@ -85,7 +85,8 @@ CONN_INTERFACE_ALIASING = TelepathyGLib.IFACE_CONNECTION_INTERFACE_ALIASING
 CONN_INTERFACE = TelepathyGLib.IFACE_CONNECTION
 CHANNEL = TelepathyGLib.IFACE_CHANNEL
 CLIENT = TelepathyGLib.IFACE_CLIENT
-CHANNEL_GROUP_FLAG_CHANNEL_SPECIFIC_HANDLES = TelepathyGLib.ChannelGroupFlags.CHANNEL_SPECIFIC_HANDLES
+CHANNEL_GROUP_FLAG_CHANNEL_SPECIFIC_HANDLES = \
+    TelepathyGLib.ChannelGroupFlags.CHANNEL_SPECIFIC_HANDLES
 CONNECTION_HANDLE_TYPE_CONTACT = TelepathyGLib.HandleType.CONTACT
 CHANNEL_TEXT_MESSAGE_TYPE_NORMAL = TelepathyGLib.ChannelTextMessageType.NORMAL
 SOCKET_ADDRESS_TYPE_UNIX = TelepathyGLib.SocketAddressType.UNIX
@@ -534,7 +535,8 @@ class IncomingFileTransfer(_BaseFileTransfer):
         proxy = dbus.Bus().get_object(connection.bus_name, object_path)
         channel[PROPERTIES_IFACE] = dbus.Interface(proxy, PROPERTIES_IFACE)
         channel[CHANNEL] = dbus.Interface(proxy, CHANNEL)
-        channel[CHANNEL_TYPE_FILE_TRANSFER] = dbus.Interface(proxy, CHANNEL_TYPE_FILE_TRANSFER)
+        channel[CHANNEL_TYPE_FILE_TRANSFER] = dbus.Interface(
+            proxy, CHANNEL_TYPE_FILE_TRANSFER)
         self.set_channel(channel)
 
         self.connect('notify::state', self.__notify_state_cb)
@@ -662,7 +664,8 @@ class _BaseOutgoingTransfer(_BaseFileTransfer):
         proxy = dbus.Bus().get_object(self._conn.bus_name, object_path)
         channel[PROPERTIES_IFACE] = dbus.Interface(proxy, PROPERTIES_IFACE)
         channel[CHANNEL] = dbus.Interface(proxy, CHANNEL)
-        channel[CHANNEL_TYPE_FILE_TRANSFER] = dbus.Interface(proxy, CHANNEL_TYPE_FILE_TRANSFER)
+        channel[CHANNEL_TYPE_FILE_TRANSFER] = dbus.Interface(
+            proxy, CHANNEL_TYPE_FILE_TRANSFER)
         self.set_channel(channel)
 
         channel_file_transfer = self.channel[CHANNEL_TYPE_FILE_TRANSFER]
